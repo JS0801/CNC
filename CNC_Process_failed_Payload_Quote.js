@@ -495,10 +495,32 @@ log.debug('Email sent', 'Yes')
         }else {
           fieldId = getFieldId(description)
         }
+
+
+    if (!fieldValue) {
+    estimateRec.selectLine({sublistId: 'item', line: lastAssemblyLine});
+    var field = estimateRec.getSublistField({sublistId: 'item', fieldId: fieldId});
+    if (field) {
+      var fieldType = field.type;
+      log.debug('Auto-resolve empty fieldValue', 'fieldId: ' + fieldId + ', type: ' + fieldType);
+      if (fieldType === 'checkbox') {
+        fieldValue = true;
+      } else if (fieldType === 'select') {
+        var options = field.getSelectOptions();
+        // Filter out the blank/empty default option
+        var nonEmpty = options.filter(function(o) { return o.value; });
+        if (nonEmpty.length === 1) {
+          fieldValue = nonEmpty[0].value;
+          log.debug('Single select option found', fieldValue);
+        }
+      }
+    }
+  }
         
       //  if (fieldId == 'custcol_mb_so_finished_interior' || fieldId == 'custcol_yy_mod_chase' || fieldId == 'custcol_nk_mod_fulldepthshelf' || fieldId == 'custcol_yy_mod_sinkbase') fieldValue = 1;
         if (fieldId == 'custcol_yy_mod_cutdown') fieldValue = cut_Down_List(fieldValue);
         if (fieldId == 'custcol_mb_con_wall_cut_down_extend') fieldValue = wall_cut_Down_List(fieldValue);
+
         
         log.debug('Setting Values', { fieldId: fieldId, fieldValue: fieldValue });
         if (fieldValue && fieldId && lastAssemblyLine != null) {
