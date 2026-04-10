@@ -212,56 +212,56 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                     //let updatedName = firstPart + '-5P';
                     
 
-                if (itemTag && firstPart1 && soId == 69446843) {
-                      let spkItem1 = 'SKP-' + firstPart1;
-                      let itemIdIs = getItemIdByName(spkItem1);
-                        log.debug('itemIdIs', itemIdIs);
+                // if (itemTag && firstPart1 && soId == 69446843) {
+                //       let spkItem1 = 'SKP-' + firstPart1;
+                //       let itemIdIs = getItemIdByName(spkItem1);
+                //         log.debug('itemIdIs', itemIdIs);
 
-                        if (itemIdIs) {
-                            rec.selectLine({ sublistId: 'item', line: j });
-                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
-                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
-                            rec.setCurrentSublistValue({
-                                sublistId: 'item',
-                                fieldId: 'rate',
-                                value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
-                            });
-                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_er_mod_cplus_stain', value: 1 });
+                //         if (itemIdIs) {
+                //             rec.selectLine({ sublistId: 'item', line: j });
+                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
+                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
+                //             rec.setCurrentSublistValue({
+                //                 sublistId: 'item',
+                //                 fieldId: 'rate',
+                //                 value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
+                //             });
+                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_er_mod_cplus_stain', value: 1 });
 
-                            rec.commitLine({ sublistId: 'item' });
+                //             rec.commitLine({ sublistId: 'item' });
 
-                            // log.debug('No 5P Case', {
-                            //     line: j,
-                            //     fallbackValue: firstPart
-                            // });
+                //             // log.debug('No 5P Case', {
+                //             //     line: j,
+                //             //     fallbackValue: firstPart
+                //             // });
 
-                        }
-                    }
-                if (itemTag && firstPart1 && soId == 69446643) {
-                      let spkItem1 = 'SBP-' + firstPart1;
-                      let itemIdIs = getItemIdByName(spkItem1);
-                        log.debug('itemIdIs', itemIdIs);
+                //         }
+                //     }
+                // if (itemTag && firstPart1 && soId == 69446643) {
+                //       let spkItem1 = 'SBP-' + firstPart1;
+                //       let itemIdIs = getItemIdByName(spkItem1);
+                //         log.debug('itemIdIs', itemIdIs);
 
-                        if (itemIdIs) {
-                            rec.selectLine({ sublistId: 'item', line: j });
-                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
-                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
-                            rec.setCurrentSublistValue({
-                                sublistId: 'item',
-                                fieldId: 'rate',
-                                value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
-                            });
-                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', value: 29 });
+                //         if (itemIdIs) {
+                //             rec.selectLine({ sublistId: 'item', line: j });
+                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
+                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
+                //             rec.setCurrentSublistValue({
+                //                 sublistId: 'item',
+                //                 fieldId: 'rate',
+                //                 value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
+                //             });
+                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', value: 29 });
 
-                            rec.commitLine({ sublistId: 'item' });
+                //             rec.commitLine({ sublistId: 'item' });
 
-                            // log.debug('No 5P Case', {
-                            //     line: j,
-                            //     fallbackValue: firstPart
-                            // });
+                //             // log.debug('No 5P Case', {
+                //             //     line: j,
+                //             //     fallbackValue: firstPart
+                //             // });
 
-                        }
-                    }
+                //         }
+                //     }
 
                 if (productServiceId == EDI_PRODUCT_SERVICE_ID && ediItemName) {
 
