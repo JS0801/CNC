@@ -202,11 +202,73 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                     line: j
                 });
 
+                let itemTag = rec.getSublistValue({
+                    sublistId: 'item',
+                    fieldId: 'custcol_rsm_item_tag',
+                    line: j
+                });
+
+                    let firstPart1 = ediItemName.split(' ')[0];
+                    //let updatedName = firstPart + '-5P';
+                    
+
+                if (itemTag && firstPart1 && soId == 69446843) {
+                      let spkItem1 = 'SKP-' + firstPart1;
+                      let itemIdIs = getItemIdByName(spkItem1);
+                        log.debug('itemIdIs', itemIdIs);
+
+                        if (itemIdIs) {
+                            rec.selectLine({ sublistId: 'item', line: j });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
+                            rec.setCurrentSublistValue({
+                                sublistId: 'item',
+                                fieldId: 'rate',
+                                value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
+                            });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_er_mod_cplus_stain', value: 1 });
+
+                            rec.commitLine({ sublistId: 'item' });
+
+                            // log.debug('No 5P Case', {
+                            //     line: j,
+                            //     fallbackValue: firstPart
+                            // });
+
+                        }
+                    }
+                if (itemTag && firstPart1 && soId == 69446643) {
+                      let spkItem1 = 'SBP-' + firstPart1;
+                      let itemIdIs = getItemIdByName(spkItem1);
+                        log.debug('itemIdIs', itemIdIs);
+
+                        if (itemIdIs) {
+                            rec.selectLine({ sublistId: 'item', line: j });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
+                            rec.setCurrentSublistValue({
+                                sublistId: 'item',
+                                fieldId: 'rate',
+                                value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
+                            });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', value: 29 });
+
+                            rec.commitLine({ sublistId: 'item' });
+
+                            // log.debug('No 5P Case', {
+                            //     line: j,
+                            //     fallbackValue: firstPart
+                            // });
+
+                        }
+                    }
+
                 if (productServiceId == EDI_PRODUCT_SERVICE_ID && ediItemName) {
 
                     let firstPart = ediItemName.split(' ')[0];
                     let updatedName = firstPart + '-5P';
-
+                    let spkItem = 'SKP-' + firstPart;
+ 
                     if (is5P) {
 
                         const itemExists = getItemIdByName(updatedName);
@@ -236,7 +298,8 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                             oldName: ediItemName,
                             newName: updatedName
                         });
-                    } else {
+                    } 
+                    else {
 
                         let itemIdIs = getItemIdByName(firstPart);
 
