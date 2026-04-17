@@ -497,7 +497,7 @@ log.debug('Email sent', 'Yes')
         }
 
 
-    if (!fieldValue) {
+    if (!fieldValue  && lastAssemblyLine != null) {
     estimateRec.selectLine({sublistId: 'item', line: lastAssemblyLine});
     var field = estimateRec.getSublistField({sublistId: 'item', fieldId: fieldId});
     if (field) {
