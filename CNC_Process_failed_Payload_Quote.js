@@ -61,13 +61,19 @@ function(record, error,format,search,log, file, email, runtime) {
         emailBody += "</br></br>Thank you,</br>CNC Cabinetry";
         
         log.debug('emailBody', emailBody)
+
+
+        var fileObj = file.load({ id: fileId });
+        fileObj.folder = 34218154;
+        fileObj.description = "Customer not found: " + (data.entity || data.customer.name || '');
+        fileObj.save();
         
-        // email.send({
-        //   author: [144846],
-        //   recipients: [91522,124373,136201],
-        //   subject: 'Quote Creation Error - Customer ' + data.customer["name"] + ' is missing',
-        //   body: emailBody
-        // });
+        email.send({
+          author: [144846],
+          recipients: [124373],
+          subject: 'Quote Creation Error - Customer ' + data.customer["name"] + ' is missing',
+          body: emailBody
+        });
         
         return false;
       }
@@ -300,10 +306,7 @@ log.debug('Email sent', 'Yes')
   // Helper function to get internal IDs for various fields
   function getCustomerId(entity) {
 
-    var returnobject = {
-        id: 85998,
-        managerid: 'Tami Daniels'
-      }
+    var returnobject = null;
 
     var customerSearchObj = search.create({
       type: "customer",
