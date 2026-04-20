@@ -3,15 +3,15 @@
  * @NScriptType Suitelet
  * @NModuleScope Public
  *
- * OAuth 2.0 M2M token generator for NetSuite using JWT Bearer assertion (PS256)
+ * NetSuite OAuth 2.0 M2M token generator using JWT Bearer assertion (PS256)
+ * Matching working Postman setup as closely as possible.
  */
 
 define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runtime, log) {
 
     var CONFIG = {
         ACCOUNT_ID: '5387755_sb2',
-        LIB_FILE_ID: 42872499,
-        TOKEN_URL: 'https://5387755_sb2.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token'
+        LIB_FILE_ID: 42872499
     };
 
     var PARAMS = {
@@ -20,6 +20,10 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
         CLIENT_ID: 'custscript_client_id',
         SCOPE: 'custscript_m2m_scope'
     };
+
+    function getTokenUrl() {
+        return 'https://' + CONFIG.ACCOUNT_ID + '.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token';
+    }
 
     function getParam(paramId, required) {
         var value = runtime.getCurrentScript().getParameter({ name: paramId });
@@ -44,7 +48,7 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
 
         privateKey = String(privateKey).trim();
 
-        // convert literal \n into actual line breaks
+        // handle literal \n stored in parameter
         privateKey = privateKey.replace(/\\n/g, '\n');
 
         return privateKey;
@@ -55,7 +59,6 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
             name: 'Content-Type',
             value: 'application/json'
         });
-
         response.write(JSON.stringify(payload));
     }
 
@@ -94,8 +97,8 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
                 libCode +
                 '\n;return {' +
                 'KJUR:(typeof KJUR!=="undefined")?KJUR:null,' +
-                'KEYUTIL:(typeof KEYUTIL!=="undefined")?KEYUTIL:null,' +
-                'RSAKey:(typeof RSAKey!=="undefined")?RSAKey:null' +
+                'RSAKey:(typeof RSAKey!=="undefined")?RSAKey:null,' +
+                'KEYUTIL:(typeof KEYUTIL!=="undefined")?KEYUTIL:null' +
                 '};'
             );
         } catch (e) {
@@ -108,8 +111,8 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
             throw new Error('Unable to execute jsrsasign file. Error: ' + (e.message || e));
         }
 
-        if (!lib || !lib.KJUR || !lib.KJUR.jws || !lib.KJUR.jws.JWS || !lib.KEYUTIL) {
-            throw new Error('Loaded jsrsasign file is missing required objects.');
+        if (!lib || !lib.KJUR || !lib.KJUR.jws || !lib.KJUR.jws.JWS) {
+            throw new Error('Loaded jsrsasign file is missing KJUR.jws.JWS');
         }
 
         return lib;
@@ -123,28 +126,25 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
         };
     }
 
-    function buildJwtPayload(clientId, scope, tokenUrl) {
+    function buildJwtPayload(clientId, scopeArray, tokenUrl) {
         var nowSec = Math.floor(new Date().getTime() / 1000);
 
         return {
             iss: clientId,
-            scope: scope,
+            scope: scopeArray,
             iat: nowSec,
-            exp: nowSec + 300,
+            exp: nowSec + 3600,
             aud: tokenUrl
         };
     }
 
     function signJwt(jsrsasignLib, header, payload, privateKey) {
         try {
-            var normalizedKey = normalizePrivateKey(privateKey);
-            var keyObj = jsrsasignLib.KEYUTIL.getKey(normalizedKey);
-
             return jsrsasignLib.KJUR.jws.JWS.sign(
                 'PS256',
                 JSON.stringify(header),
                 JSON.stringify(payload),
-                keyObj
+                privateKey
             );
         } catch (e) {
             throw new Error('JWT signing failed. Error: ' + (e.message || e));
@@ -174,19 +174,25 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
             var privateKey = normalizePrivateKey(getParam(PARAMS.PRIVATE_KEY, true));
             var certId = getParam(PARAMS.CERT_ID, true);
             var clientId = getParam(PARAMS.CLIENT_ID, true);
-            var scope = getParam(PARAMS.SCOPE, false) || 'restlets rest_webservices';
+            var rawScope = getParam(PARAMS.SCOPE, false) || 'restlets rest_webservices';
+            var scopeArray = rawScope.split(/[\s,]+/).filter(function (value) {
+                return !!value;
+            });
+
+            var tokenUrl = getTokenUrl();
 
             log.debug({
-                title: 'Script Config',
+                title: 'Config',
                 details: {
                     accountId: CONFIG.ACCOUNT_ID,
-                    tokenUrl: CONFIG.TOKEN_URL,
+                    tokenUrl: tokenUrl,
                     libFileId: CONFIG.LIB_FILE_ID,
                     certId: certId,
                     clientId: clientId,
-                    scope: scope,
+                    rawScope: rawScope,
+                    scopeArray: scopeArray,
                     privateKeyLength: privateKey.length,
-                    keyStartsWith: privateKey.substring(0, 35),
+                    keyStart: privateKey.substring(0, 40),
                     hasBegin: privateKey.indexOf('-----BEGIN') !== -1,
                     hasEnd: privateKey.indexOf('-----END') !== -1,
                     hasNewLine: privateKey.indexOf('\n') !== -1
@@ -196,24 +202,32 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
             var jsrsasignLib = loadJsrsasign(CONFIG.LIB_FILE_ID);
 
             var jwtHeader = buildJwtHeader(certId);
-            var jwtPayload = buildJwtPayload(clientId, scope, CONFIG.TOKEN_URL);
-            var signedJwt = signJwt(jsrsasignLib, jwtHeader, jwtPayload, privateKey);
+            var jwtPayload = buildJwtPayload(clientId, scopeArray, tokenUrl);
 
             log.debug({
-                title: 'JWT Created',
+                title: 'JWT Header/Payload',
                 details: {
                     header: jwtHeader,
                     payload: jwtPayload
                 }
             });
 
-            var tokenResp = requestToken(CONFIG.TOKEN_URL, signedJwt);
+            var signedJwt = signJwt(jsrsasignLib, jwtHeader, jwtPayload, privateKey);
+
+            log.debug({
+                title: 'JWT Signed',
+                details: {
+                    jwtLength: signedJwt ? signedJwt.length : 0
+                }
+            });
+
+            var tokenResp = requestToken(tokenUrl, signedJwt);
             var parsedBody = safeParseJson(tokenResp.body);
 
             log.audit({
-                title: 'Token Endpoint Response',
+                title: 'Token Response',
                 details: {
-                    httpCode: tokenResp.code,
+                    code: tokenResp.code,
                     body: parsedBody
                 }
             });
@@ -223,15 +237,14 @@ define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runti
                     success: true,
                     data: parsedBody
                 });
-                return;
+            } else {
+                writeJson(response, {
+                    success: false,
+                    error: 'token_request_failed',
+                    httpStatus: tokenResp.code,
+                    response: parsedBody
+                });
             }
-
-            writeJson(response, {
-                success: false,
-                error: 'token_request_failed',
-                httpStatus: tokenResp.code,
-                response: parsedBody
-            });
 
         } catch (e) {
             log.error({
