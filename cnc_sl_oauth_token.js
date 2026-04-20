@@ -64,7 +64,7 @@ define(['N/https', 'N/encode', 'N/crypto/certificate', 'N/runtime', 'N/log'],
     const buildJwtAssertion = (cfg) => {
         // PS256 is correct when your certificate was generated with RSA-PSS padding,
         // which is the NetSuite-recommended setup for OAuth 2.0 M2M.
-        const header = { alg: 'PS256', typ: 'JWT', kid: cfg.kid };
+        const header = { alg: 'RS256', typ: 'JWT', kid: cfg.kid };
 
         const now = Math.floor(Date.now() / 1000);
         const payload = {
