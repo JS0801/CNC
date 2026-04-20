@@ -77,7 +77,7 @@ function (https, file, runtime, log) {
      * `window`/`navigator`. We eval the code inside a Function (non-strict), shim
      * the globals it looks for, and return the identifiers we need.
      */
-    function loadJsrsasign(p) {
+    function loadJsrsasign(pathOrId) {
         var libFile = file.load({ id: 42872499 });
         var libCode = libFile.getContents();
 
