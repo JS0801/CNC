@@ -13,7 +13,7 @@
  * Optional:
  *   - custscript_scope           : Space-separated scopes (default: "restlets rest_webservices")
  */
-define(['N/https', 'N/encode', 'N/certificate', 'N/runtime', 'N/log', 'N/error'],
+define(['N/https', 'N/encode', 'N/crypto/certificate', 'N/runtime', 'N/log', 'N/error'],
 (https, encode, certificate, runtime, log, error) => {
 
     // ---------- CONFIG ----------
