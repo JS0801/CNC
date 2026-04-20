@@ -3,64 +3,49 @@
  * @NScriptType Suitelet
  * @NModuleScope Public
  *
- * Suitelet: Return a NetSuite OAuth 2.0 Bearer Token
- * -----------------------------------------------------------------------------
- * Flow: Client Credentials (M2M) with JWT Bearer Assertion, signed with PS256
- * using a raw PEM private key and the jsrsasign library — mirrors the Postman
- * collection behavior.
+ * Returns a NetSuite OAuth 2.0 bearer token (M2M / JWT Bearer assertion, PS256),
+ * signed with a PEM private key using the jsrsasign library loaded from the
+ * File Cabinet.
  *
- * ONE-TIME SETUP
- * -----------------------------------------------------------------------------
- * 1. Download jsrsasign:
- *      https://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js
- * 2. Upload to File Cabinet, e.g.:
- *      /SuiteScripts/lib/jsrsasign-all-min.js
- * 3. Copy the file's path OR internal ID — you'll put it in the LIB_PATH param.
+ * SCRIPT PARAMETERS (Script record → Parameters tab)
+ *   ID                        TYPE             LABEL
+ *   custscript_secret_id      Long Text        Private Key (PEM, full text with header/footer)
+ *   custscript_kid            Free-Form Text   Certificate ID (kid)
+ *   custscript_client_id      Free-Form Text   Client ID (Consumer Key)
+ *   custscript_m2m_scope      Free-Form Text   (optional) default "restlets rest_webservices"
  *
- * SCRIPT PARAMETERS (on the Script record, "Parameters" tab)
- * -----------------------------------------------------------------------------
- *   ID                             TYPE             LABEL
- *   custscript_m2m_private_key     Long Text        Private Key (PEM)
- *   custscript_m2m_cert_id         Free-Form Text   Certificate ID (kid)
- *   custscript_m2m_client_id       Free-Form Text   Client ID (Consumer Key)
- *   custscript_m2m_client_secret   Password         Client Secret (stored, not sent)
- *   custscript_m2m_account_id      Free-Form Text   Account ID (e.g. 1234567_sb1)
- *   custscript_m2m_lib_path        Free-Form Text   Path or ID of jsrsasign-all-min.js
- *   custscript_m2m_scope           Free-Form Text   (optional) default
- *                                                   "restlets rest_webservices"
- *
- * Paste the PEM private key INCLUDING the header/footer lines, e.g.:
- *   -----BEGIN PRIVATE KEY-----
- *   MIIEvQIBADANBgkqhkiG9w0BAQEF...
- *   -----END PRIVATE KEY-----
- *
- * SECURITY NOTE
- * -----------------------------------------------------------------------------
- * Putting a raw PEM into a script parameter means any admin with script access
- * can read it. The "Password" field type encrypts Client Secret but does not
- * apply to Long Text. If that's a concern, switch to the N/crypto/certificate
- * approach (upload the cert to NetSuite and reference it by certId instead).
+ * Account ID and jsrsasign file ID are hardcoded below — edit the two constants
+ * at the top of the module if you deploy this elsewhere.
  */
 define(['N/https', 'N/file', 'N/runtime', 'N/log'],
 function (https, file, runtime, log) {
 
-    // ---------- parameter IDs ----------
+    // ---------- hardcoded for this deployment ----------
+
+    var ACCOUNT_ID  = '5387755_sb2';   // NetSuite account ID (lowercase, underscore)
+    var LIB_FILE_ID = 42872499;        // File Cabinet internal ID of jsrsasign-all-min.js
+
+    // ---------- script-parameter IDs ----------
 
     var PARAM = {
-        PRIVATE_KEY:   'custscript_secret_id',
-        CERT_ID:       'custscript_kid',        // kid
-        CLIENT_ID:     'custscript_client_id',
-        CLIENT_SECRET: 'custscript_secret_id',  // stored, not sent
-        SCOPE:         'custscript_m2m_scope'
+        PRIVATE_KEY: 'custscript_certificate_id',   // PEM private key
+        CERT_ID:     'custscript_kid',          // used as JWT header "kid"
+        CLIENT_ID:   'custscript_client_id',    // integration's Consumer Key
+        SCOPE:       'custscript_m2m_scope'     // optional
     };
 
     // ---------- helpers ----------
 
     function readParam(name, required) {
         var v = runtime.getCurrentScript().getParameter({ name: name });
-        v = (v == null) ? '' : String(v).trim();
-        if (required && !v) {
-            throw new Error('Script parameter "' + name + '" is not set on this deployment.');
+        if (v === null || v === undefined) v = '';
+        v = String(v).trim();
+        if (required && v === '') {
+            throw new Error(
+                'Script parameter "' + name + '" has no value. ' +
+                'Confirm it exists on the Script record AND that this Deployment ' +
+                'has a value set under Parameters.'
+            );
         }
         return v;
     }
@@ -71,31 +56,53 @@ function (https, file, runtime, log) {
     }
 
     /**
-     * Loads jsrsasign from the File Cabinet and returns { KJUR, RSAKey, KEYUTIL }.
-     *
-     * jsrsasign declares KJUR/RSAKey/KEYUTIL as top-level vars and probes
-     * `window`/`navigator`. We eval the code inside a Function (non-strict), shim
-     * the globals it looks for, and return the identifiers we need.
+     * Loads jsrsasign by inlining its source code as the body of a Function
+     * constructor. KJUR / RSAKey / KEYUTIL become local vars of that function,
+     * and we return them explicitly. No eval() involved.
      */
-    function loadJsrsasign(pathOrId) {
-        var libFile = file.load({ id: 42872499 });
+    function loadJsrsasign(fileId) {
+        var libFile;
+        try {
+            libFile = file.load({ id: fileId });
+        } catch (e) {
+            throw new Error(
+                'Could not load jsrsasign file (id=' + fileId + '). ' +
+                'Underlying error: ' + (e.message || e)
+            );
+        }
+
         var libCode = libFile.getContents();
+        if (!libCode || libCode.length < 1000) {
+            throw new Error(
+                'jsrsasign file (id=' + fileId + ') looks empty or truncated ' +
+                '(size=' + (libCode ? libCode.length : 0) + ' bytes).'
+            );
+        }
 
-        var factory = new Function(
-            'libCode',
-            'var window = {}; var navigator = {}; ' +
-            'eval(libCode); ' +
-            'return { ' +
-            '  KJUR:    typeof KJUR    !== "undefined" ? KJUR    : (window.KJUR    || null), ' +
-            '  RSAKey:  typeof RSAKey  !== "undefined" ? RSAKey  : (window.RSAKey  || null), ' +
-            '  KEYUTIL: typeof KEYUTIL !== "undefined" ? KEYUTIL : (window.KEYUTIL || null)  ' +
-            '};'
-        );
+        var factory;
+        try {
+            factory = new Function(
+                'navigator', 'window',
+                libCode +
+                '\n;return {' +
+                '  KJUR:    (typeof KJUR    !== "undefined") ? KJUR    : null,' +
+                '  RSAKey:  (typeof RSAKey  !== "undefined") ? RSAKey  : null,' +
+                '  KEYUTIL: (typeof KEYUTIL !== "undefined") ? KEYUTIL : null ' +
+                '};'
+            );
+        } catch (e) {
+            throw new Error(
+                'Failed to parse jsrsasign source (id=' + fileId + '): ' +
+                (e.message || e)
+            );
+        }
 
-        var lib = factory(libCode);
+        var lib = factory({}, {});
         if (!lib || !lib.KJUR || !lib.KJUR.jws || !lib.KJUR.jws.JWS) {
-            throw new Error('Failed to load jsrsasign from "' + pathOrId +
-                            '" — KJUR.jws.JWS not found.');
+            throw new Error(
+                'Loaded jsrsasign (id=' + fileId + ') but KJUR.jws.JWS is missing. ' +
+                'Is the file really jsrsasign-all-min.js?'
+            );
         }
         return lib;
     }
@@ -107,24 +114,33 @@ function (https, file, runtime, log) {
 
         try {
             // --- Read config ---
-            var privateKey   = readParam(PARAM.PRIVATE_KEY,   true);
-            var certKid      = readParam(PARAM.CERT_ID,       true);
-            var clientId     = readParam(PARAM.CLIENT_ID,     true);
-            var clientSecret = readParam(PARAM.CLIENT_SECRET, false);
-            var accountId    = '5387755_sb2';
-            var libPath      = null;
-            var rawScope     = readParam(PARAM.SCOPE,         false) || 'restlets rest_webservices';
-            var scopeArr     = rawScope.split(/[\s,]+/).filter(Boolean);
-            void clientSecret; // silencing unused-var; kept as param for config completeness
+            var privateKey = readParam(PARAM.PRIVATE_KEY, true);
+            var certKid    = readParam(PARAM.CERT_ID,     true);
+            var clientId   = readParam(PARAM.CLIENT_ID,   true);
+            var rawScope   = readParam(PARAM.SCOPE,       false) || 'restlets rest_webservices';
+            var scopeArr   = rawScope.split(/[\s,]+/).filter(Boolean);
 
-            var tokenUrl = 'https://' + accountId +
+            var tokenUrl = 'https://' + ACCOUNT_ID +
                 '.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token';
 
+            log.debug({
+                title: 'Config loaded',
+                details: {
+                    clientId:      clientId,
+                    accountId:     ACCOUNT_ID,
+                    libFileId:     LIB_FILE_ID,
+                    kid:           certKid,
+                    scopes:        scopeArr,
+                    privateKeyLen: privateKey.length,
+                    privateKeyStartsWith: privateKey.substring(0, 27)  // sanity check
+                }
+            });
+
             // --- Load jsrsasign ---
-            var jsr  = loadJsrsasign(libPath);
+            var jsr  = loadJsrsasign(LIB_FILE_ID);
             var KJUR = jsr.KJUR;
 
-            // --- Build JWT (same shape as the Postman pre-request script) ---
+            // --- Build JWT (same shape as Postman) ---
             var jwtHeader = {
                 alg: 'PS256',
                 typ: 'JWT',
@@ -136,7 +152,7 @@ function (https, file, runtime, log) {
                 iss:   clientId,
                 scope: scopeArr,
                 iat:   nowSec,
-                exp:   nowSec + 3600,   // max 1 hour per NetSuite
+                exp:   nowSec + 3600,  // max 1 hour per NetSuite
                 aud:   tokenUrl
             };
 
