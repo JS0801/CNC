@@ -3,212 +3,262 @@
  * @NScriptType Suitelet
  * @NModuleScope Public
  *
- * Returns a NetSuite OAuth 2.0 bearer token (M2M / JWT Bearer assertion, PS256),
- * signed with a PEM private key using the jsrsasign library loaded from the
- * File Cabinet.
- *
- * SCRIPT PARAMETERS (Script record → Parameters tab)
- *   ID                        TYPE             LABEL
- *   custscript_secret_id      Long Text        Private Key (PEM, full text with header/footer)
- *   custscript_kid            Free-Form Text   Certificate ID (kid)
- *   custscript_client_id      Free-Form Text   Client ID (Consumer Key)
- *   custscript_m2m_scope      Free-Form Text   (optional) default "restlets rest_webservices"
- *
- * Account ID and jsrsasign file ID are hardcoded below — edit the two constants
- * at the top of the module if you deploy this elsewhere.
+ * OAuth 2.0 M2M token generator for NetSuite using JWT Bearer assertion (PS256).
+ * The private key is read from a script parameter and the jsrsasign library is
+ * loaded from the File Cabinet.
  */
-define(['N/https', 'N/file', 'N/runtime', 'N/log'],
-function (https, file, runtime, log) {
 
-    // ---------- hardcoded for this deployment ----------
+define(['N/https', 'N/file', 'N/runtime', 'N/log'], function (https, file, runtime, log) {
 
-    var ACCOUNT_ID  = '5387755_sb2';   // NetSuite account ID (lowercase, underscore)
-    var LIB_FILE_ID = 42872499;        // File Cabinet internal ID of jsrsasign-all-min.js
+    // -------------------------------------------------------------------------
+    // CONFIG
+    // -------------------------------------------------------------------------
 
-    // ---------- script-parameter IDs ----------
-
-    var PARAM = {
-        PRIVATE_KEY: 'custscript_certificate_id',   // PEM private key
-        CERT_ID:     'custscript_kid',          // used as JWT header "kid"
-        CLIENT_ID:   'custscript_client_id',    // integration's Consumer Key
-        SCOPE:       'custscript_m2m_scope'     // optional
+    var CONFIG = {
+        ACCOUNT_ID: '5387755_sb2',
+        LIB_FILE_ID: 42872499,
+        TOKEN_PATH: '/services/rest/auth/oauth2/v1/token'
     };
 
-    // ---------- helpers ----------
+    var PARAMS = {
+        PRIVATE_KEY: 'custscript_certificate_id',
+        CERT_ID: 'custscript_kid',
+        CLIENT_ID: 'custscript_client_id',
+        SCOPE: 'custscript_m2m_scope'
+    };
 
-    function readParam(name, required) {
-        var v = runtime.getCurrentScript().getParameter({ name: name });
-        if (v === null || v === undefined) v = '';
-        v = String(v).trim();
-        if (required && v === '') {
-            throw new Error(
-                'Script parameter "' + name + '" has no value. ' +
-                'Confirm it exists on the Script record AND that this Deployment ' +
-                'has a value set under Parameters.'
-            );
-        }
-        return v;
+    // -------------------------------------------------------------------------
+    // HELPERS
+    // -------------------------------------------------------------------------
+
+    function getTokenUrl() {
+        return 'https://' + CONFIG.ACCOUNT_ID + '.suitetalk.api.netsuite.com' + CONFIG.TOKEN_PATH;
     }
 
-    function writeJson(response, payload) {
-        response.setHeader({ name: 'Content-Type', value: 'application/json' });
+    function getScriptParameter(paramId, isRequired) {
+        var value = runtime.getCurrentScript().getParameter({ name: paramId });
+
+        if (value === null || value === undefined) {
+            value = '';
+        }
+
+        value = String(value).trim();
+
+        if (isRequired && !value) {
+            throw new Error(
+                'Missing required script parameter: ' + paramId +
+                '. Please set a value on the script deployment.'
+            );
+        }
+
+        return value;
+    }
+
+    function writeJsonResponse(response, payload) {
+        response.setHeader({
+            name: 'Content-Type',
+            value: 'application/json'
+        });
         response.write(JSON.stringify(payload));
     }
 
-    /**
-     * Loads jsrsasign by inlining its source code as the body of a Function
-     * constructor. KJUR / RSAKey / KEYUTIL become local vars of that function,
-     * and we return them explicitly. No eval() involved.
-     */
-    function loadJsrsasign(fileId) {
+    function loadJsrsasignLibrary(fileId) {
         var libFile;
+        var libCode;
+        var factory;
+        var lib;
+
         try {
             libFile = file.load({ id: fileId });
         } catch (e) {
             throw new Error(
-                'Could not load jsrsasign file (id=' + fileId + '). ' +
-                'Underlying error: ' + (e.message || e)
+                'Unable to load jsrsasign library file. File ID: ' + fileId +
+                '. Error: ' + (e.message || e)
             );
         }
 
-        var libCode = libFile.getContents();
+        libCode = libFile.getContents();
+
         if (!libCode || libCode.length < 1000) {
             throw new Error(
-                'jsrsasign file (id=' + fileId + ') looks empty or truncated ' +
-                '(size=' + (libCode ? libCode.length : 0) + ' bytes).'
+                'jsrsasign library file is empty, invalid, or truncated. File ID: ' + fileId
             );
         }
 
-        var factory;
         try {
             factory = new Function(
-                'navigator', 'window',
+                'navigator',
+                'window',
                 libCode +
                 '\n;return {' +
-                '  KJUR:    (typeof KJUR    !== "undefined") ? KJUR    : null,' +
-                '  RSAKey:  (typeof RSAKey  !== "undefined") ? RSAKey  : null,' +
-                '  KEYUTIL: (typeof KEYUTIL !== "undefined") ? KEYUTIL : null ' +
+                'KJUR: (typeof KJUR !== "undefined") ? KJUR : null,' +
+                'KEYUTIL: (typeof KEYUTIL !== "undefined") ? KEYUTIL : null,' +
+                'RSAKey: (typeof RSAKey !== "undefined") ? RSAKey : null' +
                 '};'
             );
         } catch (e) {
             throw new Error(
-                'Failed to parse jsrsasign source (id=' + fileId + '): ' +
-                (e.message || e)
+                'Failed to parse jsrsasign library. Error: ' + (e.message || e)
             );
         }
 
-        var lib = factory({}, {});
-        if (!lib || !lib.KJUR || !lib.KJUR.jws || !lib.KJUR.jws.JWS) {
+        try {
+            lib = factory({}, {});
+        } catch (e) {
             throw new Error(
-                'Loaded jsrsasign (id=' + fileId + ') but KJUR.jws.JWS is missing. ' +
-                'Is the file really jsrsasign-all-min.js?'
+                'Failed to execute jsrsasign library. Error: ' + (e.message || e)
             );
         }
+
+        if (!lib || !lib.KJUR || !lib.KJUR.jws || !lib.KJUR.jws.JWS) {
+            throw new Error(
+                'jsrsasign library loaded, but KJUR.jws.JWS is not available.'
+            );
+        }
+
         return lib;
     }
 
-    // ---------- main ----------
+    function buildJwtPayload(clientId, scope, tokenUrl) {
+        var nowSec = Math.floor(new Date().getTime() / 1000);
+
+        return {
+            iss: clientId,
+            scope: scope,
+            iat: nowSec,
+            exp: nowSec + 300,
+            aud: tokenUrl
+        };
+    }
+
+    function buildJwtHeader(certId) {
+        return {
+            alg: 'PS256',
+            typ: 'JWT',
+            kid: certId
+        };
+    }
+
+    function signJwt(jsrsasignLib, header, payload, privateKey) {
+        try {
+            return jsrsasignLib.KJUR.jws.JWS.sign(
+                'PS256',
+                JSON.stringify(header),
+                JSON.stringify(payload),
+                privateKey
+            );
+        } catch (e) {
+            throw new Error('JWT signing failed. Error: ' + (e.message || e));
+        }
+    }
+
+    function requestAccessToken(tokenUrl, signedJwt) {
+        var requestBody =
+            'grant_type=client_credentials' +
+            '&client_assertion_type=' + encodeURIComponent('urn:ietf:params:oauth:client-assertion-type:jwt-bearer') +
+            '&client_assertion=' + encodeURIComponent(signedJwt);
+
+        return https.post({
+            url: tokenUrl,
+            body: requestBody,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            }
+        });
+    }
+
+    function safeJsonParse(text) {
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            return {
+                raw: text
+            };
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // MAIN
+    // -------------------------------------------------------------------------
 
     function onRequest(context) {
         var response = context.response;
 
         try {
-            // --- Read config ---
-            var privateKey = readParam(PARAM.PRIVATE_KEY, true);
-            var certKid    = readParam(PARAM.CERT_ID,     true);
-            var clientId   = readParam(PARAM.CLIENT_ID,   true);
-            var rawScope   = readParam(PARAM.SCOPE,       false) || 'restlets rest_webservices';
-            var scopeArr   = rawScope.split(/[\s,]+/).filter(Boolean);
+            var privateKey = getScriptParameter(PARAMS.PRIVATE_KEY, true);
+            var certId = getScriptParameter(PARAMS.CERT_ID, true);
+            var clientId = getScriptParameter(PARAMS.CLIENT_ID, true);
+            var scope = getScriptParameter(PARAMS.SCOPE, false) || 'restlets rest_webservices';
 
-            var tokenUrl = 'https://' + ACCOUNT_ID +
-                '.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token';
+            var tokenUrl = getTokenUrl();
 
             log.debug({
-                title: 'Config loaded',
+                title: 'OAuth Config',
                 details: {
-                    clientId:      clientId,
-                    accountId:     ACCOUNT_ID,
-                    libFileId:     LIB_FILE_ID,
-                    kid:           certKid,
-                    scopes:        scopeArr,
-                    privateKeyLen: privateKey.length,
-                    privateKeyStartsWith: privateKey.substring(0, 27)  // sanity check
+                    accountId: CONFIG.ACCOUNT_ID,
+                    tokenUrl: tokenUrl,
+                    libFileId: CONFIG.LIB_FILE_ID,
+                    clientId: clientId,
+                    certId: certId,
+                    scope: scope,
+                    privateKeyLength: privateKey.length
                 }
             });
 
-            // --- Load jsrsasign ---
-            var jsr  = loadJsrsasign(LIB_FILE_ID);
-            var KJUR = jsr.KJUR;
+            var jsrsasignLib = loadJsrsasignLibrary(CONFIG.LIB_FILE_ID);
 
-            // --- Build JWT (same shape as Postman) ---
-            var jwtHeader = {
-                alg: 'PS256',
-                typ: 'JWT',
-                kid: certKid
-            };
+            var jwtHeader = buildJwtHeader(certId);
+            var jwtPayload = buildJwtPayload(clientId, scope, tokenUrl);
+            var signedJwt = signJwt(jsrsasignLib, jwtHeader, jwtPayload, privateKey);
 
-            var nowSec = Math.floor(Date.now() / 1000);
-            var jwtPayload = {
-                iss:   clientId,
-                scope: scopeArr,
-                iat:   nowSec,
-                exp:   nowSec + 3600,  // max 1 hour per NetSuite
-                aud:   tokenUrl
-            };
-
-            // --- Sign ---
-            var signedJWT = KJUR.jws.JWS.sign(
-                'PS256',
-                JSON.stringify(jwtHeader),
-                JSON.stringify(jwtPayload),
-                privateKey
-            );
-
-            // --- Exchange JWT for access token ---
-            var formBody =
-                'grant_type=client_credentials' +
-                '&client_assertion_type=' +
-                    encodeURIComponent('urn:ietf:params:oauth:client-assertion-type:jwt-bearer') +
-                '&client_assertion=' + encodeURIComponent(signedJWT);
-
-            var tokenResp = https.post({
-                url: tokenUrl,
-                body: formBody,
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept':       'application/json'
+            log.debug({
+                title: 'JWT Created',
+                details: {
+                    header: jwtHeader,
+                    payload: jwtPayload
                 }
             });
+
+            var tokenResponse = requestAccessToken(tokenUrl, signedJwt);
+            var parsedBody = safeJsonParse(tokenResponse.body);
 
             log.audit({
-                title:   'Token endpoint response',
-                details: 'HTTP ' + tokenResp.code
+                title: 'Token Response',
+                details: {
+                    httpCode: tokenResponse.code,
+                    body: parsedBody
+                }
             });
 
-            var parsed;
-            try { parsed = JSON.parse(tokenResp.body); }
-            catch (e) { parsed = { raw: tokenResp.body }; }
-
-            if (tokenResp.code >= 200 && tokenResp.code < 300) {
-                // Success: { access_token, expires_in, token_type, scope }
-                writeJson(response, parsed);
-            } else {
-                writeJson(response, {
-                    error:       'token_request_failed',
-                    http_status: tokenResp.code,
-                    response:    parsed
-                });
+            if (tokenResponse.code >= 200 && tokenResponse.code < 300) {
+                writeJsonResponse(response, parsedBody);
+                return;
             }
 
-        } catch (err) {
-            log.error({ title: 'Bearer token Suitelet error', details: err });
-            writeJson(response, {
-                error:   'suitelet_exception',
-                message: err.message || String(err),
-                name:    err.name || null
+            writeJsonResponse(response, {
+                success: false,
+                error: 'token_request_failed',
+                httpStatus: tokenResponse.code,
+                response: parsedBody
+            });
+
+        } catch (e) {
+            log.error({
+                title: 'Suitelet Error',
+                details: e
+            });
+
+            writeJsonResponse(response, {
+                success: false,
+                error: 'suitelet_exception',
+                message: e.message || String(e),
+                name: e.name || ''
             });
         }
     }
 
-    return { onRequest: onRequest };
+    return {
+        onRequest: onRequest
+    };
 });
