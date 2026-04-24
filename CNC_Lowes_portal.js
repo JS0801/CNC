@@ -34,9 +34,7 @@ function (search, record, log, runtime) {
      *  >>> CHANGE THIS KEY TO ANY RANDOM STRING YOU WANT <<<
      *  Treat it like a password. Rotate on demand.
      * ============================================================= */
-    var VALID_API_KEY = var VALID_API_KEY = runtime.getCurrentScript().getParameter({
-            name: 'custscript_cnc_api_key'
-        }) || '';
+
 
 
     /* =============================================================
@@ -48,6 +46,10 @@ function (search, record, log, runtime) {
 
         response.setHeader({ name: 'Content-Type',  value: 'text/html; charset=utf-8' });
         response.setHeader({ name: 'X-Frame-Options', value: 'SAMEORIGIN' });
+
+          var VALID_API_KEY = runtime.getCurrentScript().getParameter({
+            name: 'custscript_cnc_api_key'
+          }) || '';
 
         try {
             /* ---------- 1. API-KEY GATE ---------- */
