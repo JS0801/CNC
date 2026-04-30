@@ -190,7 +190,7 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
             var lineCount = rec.getLineCount({ sublistId: 'item' });
 
             for (var j = 0; j < lineCount; j++) {
-                if (soId == '69944699' && j > 0) break;
+                if (soId == '69944699' && j > 1) break;
 
                 var itemId = rec.getSublistValue({ sublistId: 'item', fieldId: 'item', line: j });
                 let originalEdiItemName = rec.getSublistValue({ sublistId: 'item', fieldId: 'custcol_boomi_edi_item_name', line: j });
