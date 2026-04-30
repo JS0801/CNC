@@ -5,6 +5,8 @@
 define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
 
     const EDI_PRODUCT_SERVICE_ID = '1013534250';
+    const OPTIONS_LINEN_COLOR = '102 - Linen';
+    const ORDER_EVERGREE_COLOR = '107 - Evergreen';
 
     function afterSubmit(context) {
         if (context.type !== context.UserEventType.CREATE && context.type !== context.UserEventType.EDIT) return;
@@ -16,8 +18,8 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
             const recType = context.newRecord.type;
             const orderStatus = newRec.getValue({ fieldId: 'orderstatus' });
             if (recType === record.Type.SALES_ORDER && orderStatus !== 'A') {
-               log.debug('Skipping record - not Pending Approval', orderStatus);
-               return;
+                log.debug('Skipping record - not Pending Approval', orderStatus);
+                return;
             };
 
             // Step 1: Run Saved Search Logic
@@ -33,7 +35,7 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                     ["mainline", "is", "F"], "AND",
                     // ["item", "anyof", "306263"], "AND", // placeholder item
                     ["internalidnumber", "equalto", soId], "AND",
-                    ["status","anyof","SalesOrd:A"], "AND",
+                    ["status", "anyof", "SalesOrd:A"], "AND",
                     [
                         ["item.custitem_yy_availableso", "is", "T"], "OR",
                         ["item.type", "anyof", "Discount", "Kit", "Markup", "NonInvtPart", "OthCharge", "Subtotal"]
@@ -46,120 +48,123 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                     ["item.custitem_yy_it_priceonly", "is", "F"]
                 ],
                 columns: [
-    search.createColumn({ name: "custcol_boomi_edi_item_name" }),
-                  search.createColumn({
-    name: "formulatext",
-    formula:
-        "CASE " +
-        "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^CW[0-9]+[LR]$') THEN " +
-        "  CASE " +
-        "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS BOURBON (D)' THEN 'NKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS SLEEK WHITE (M)' THEN 'NBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-        "  END " +
-        "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^[0-9]+[A-Z]$') THEN " +
-        "  CASE " +
-        "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS BOURBON (D)' THEN 'NKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS SLEEK WHITE (M)' THEN 'NBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-        "  END " +
-        "ELSE " +
-        "  CASE " +
-        "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || {custcol_boomi_edi_item_name} " +
-        //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS BOURBON (D)' THEN 'NKP-' || {custcol_boomi_edi_item_name} " +
-        "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS SLEEK WHITE (M)' THEN 'NBP-' || {custcol_boomi_edi_item_name} " +
-        "    ELSE {custcol_boomi_edi_item_name} " +
-        "  END " +
-        "END",
-    label: "Transformed Name"
-})
-//     search.createColumn({
-//     name: "formulatext",
-//     formula:
-//         "CASE " +
-//         "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^CW[0-9]+[LR]$') THEN " +
-//         "  CASE " +
-//         "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
-//         "  END " +
-//         "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^[0-9]+[A-Z]$') THEN " +
-//         "  CASE " +
-//         "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
-//         "  END " +
-//         "ELSE " +
-//         "  CASE " +
-//         "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || {custcol_boomi_edi_item_name} " +
-//         //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || {custcol_boomi_edi_item_name} " +
-//         "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || {custcol_boomi_edi_item_name} " +
-//         "    ELSE {custcol_boomi_edi_item_name} " +
-//         "  END " +
-//         "END",
-//     label: "Transformed Name"
-// })
+                    search.createColumn({ name: "custcol_boomi_edi_item_name" }),
+                    search.createColumn({
+                        name: "formulatext",
+                        formula:
+                            "CASE " +
+                            "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^CW[0-9]+[LR]$') THEN " +
+                            "  CASE " +
+                            "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ELEGANT PLUS LINEN (M)' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS BOURBON (D)' THEN 'NKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS SLEEK WHITE (M)' THEN 'NBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS EVERGREEN (M)' THEN 'NBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                            "  END " +
+                            "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^[0-9]+[A-Z]$') THEN " +
+                            "  CASE " +
+                            "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ELEGANT PLUS LINEN (M)' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS BOURBON (D)' THEN 'NKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS SLEEK WHITE (M)' THEN 'NBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS EVERGREEN (M)' THEN 'NBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                            "  END " +
+                            "ELSE " +
+                            "  CASE " +
+                            "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'ELEGANT PLUS LINEN (M)' THEN 'EBP-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS BOURBON (D)' THEN 'NKP-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS SLEEK WHITE (M)' THEN 'NBP-' || {custcol_boomi_edi_item_name} " +
+                            "    WHEN {custcol_rsm_item_tag} = 'NEWPORT PLUS EVERGREEN (M)' THEN 'NBP-' || {custcol_boomi_edi_item_name} " +
+                            "    ELSE {custcol_boomi_edi_item_name} " +
+                            "  END " +
+                            "END",
+                        label: "Transformed Name"
+                    })
+                    //     search.createColumn({
+                    //     name: "formulatext",
+                    //     formula:
+                    //         "CASE " +
+                    //         "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^CW[0-9]+[LR]$') THEN " +
+                    //         "  CASE " +
+                    //         "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^CW[0-9]+') " +
+                    //         "  END " +
+                    //         "WHEN REGEXP_LIKE({custcol_boomi_edi_item_name}, '^[0-9]+[A-Z]$') THEN " +
+                    //         "  CASE " +
+                    //         "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "    ELSE REGEXP_SUBSTR({custcol_boomi_edi_item_name}, '^[0-9]+') " +
+                    //         "  END " +
+                    //         "ELSE " +
+                    //         "  CASE " +
+                    //         "    WHEN {custcol_rsm_item_tag} IN ('CONCORD / ELEGANT WHITE', 'ELEGANT WHITE') THEN 'EB10-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'CONCORD / ELEGANT OCEAN' THEN 'EB27-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} LIKE 'ELEGANT PLUS%' THEN 'EBP-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL WHITE' THEN 'L10-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL SMOKY GREY' THEN 'L02-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL MISTY GREY' THEN 'L03-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL HARVEST' THEN 'L05-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'ROYAL ESPRESSO' THEN 'L11-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'BROADWAY' THEN 'BMM650-' || {custcol_boomi_edi_item_name} " +
+                    //         //"    WHEN {custcol_rsm_item_tag} = 'MILANO' THEN 'MPM452-' || {custcol_boomi_edi_item_name} " +
+                    //         "    WHEN {custcol_rsm_item_tag} = 'SYDNEY PLUS BOURBON (P)' THEN 'SKP-' || {custcol_boomi_edi_item_name} " +
+                    //         "    ELSE {custcol_boomi_edi_item_name} " +
+                    //         "  END " +
+                    //         "END",
+                    //     label: "Transformed Name"
+                    // })
 
-   
-]
+
+                ]
             }).run().getRange({ start: 0, end: 100 });
 
             for (var i = 0; i < results.length; i++) {
@@ -185,10 +190,57 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
             var lineCount = rec.getLineCount({ sublistId: 'item' });
 
             for (var j = 0; j < lineCount; j++) {
+                if (soId == '69944699' && j > 0) break;
 
                 var itemId = rec.getSublistValue({ sublistId: 'item', fieldId: 'item', line: j });
+                let originalEdiItemName = rec.getSublistValue({ sublistId: 'item', fieldId: 'custcol_boomi_edi_item_name', line: j });
+                let itemTag = rec.getSublistValue({ sublistId: 'item', fieldId: 'custcol_rsm_item_tag', line: j });
+                let ediItemName = originalEdiItemName;
 
                 if (context.type === context.UserEventType.EDIT && parseInt(itemId) !== 306263) continue;
+
+                if (itemTag === 'ELEGANT PLUS LINEN (M)' && originalEdiItemName && !originalEdiItemName.startsWith('EBP-')) {
+                    ediItemName = 'EBP-' + originalEdiItemName;
+
+                    let currentPrice = rec.getSublistValue({ sublistId: 'item', fieldId: 'price', line: j });
+                    let currentRate = rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j });
+
+                    rec.selectLine({ sublistId: 'item', line: j });
+                    rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_boomi_edi_item_name', value: ediItemName });
+
+                    if (currentPrice) rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: currentPrice });
+                    if (currentRate) rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate', value: currentRate });
+
+                    try {
+                        rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: OPTIONS_LINEN_COLOR });
+                    } catch (e) {
+                        log.debug('Ignored color set error (pre-item change)', e.message);
+                    }
+
+
+                    rec.commitLine({ sublistId: 'item' });
+                }
+
+                if (itemTag === 'NEWPORT PLUS EVERGREEN (M)' && originalEdiItemName && !originalEdiItemName.startsWith('NBP-')) {
+                    ediItemName = 'NBP-' + originalEdiItemName;
+
+                    let currentPrice = rec.getSublistValue({ sublistId: 'item', fieldId: 'price', line: j });
+                    let currentRate = rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j });
+
+                    rec.selectLine({ sublistId: 'item', line: j });
+                    rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_boomi_edi_item_name', value: ediItemName });
+
+                    if (currentPrice) rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: currentPrice });
+                    if (currentRate) rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate', value: currentRate });
+
+                    try {
+                        rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: ORDER_EVERGREE_COLOR });
+                    } catch (e) {
+                        log.debug('Ignored color set error (pre-item change)', e.message);
+                    }
+
+                    rec.commitLine({ sublistId: 'item' });
+                }
 
                 let productServiceId = rec.getSublistValue({
                     sublistId: 'item',
@@ -196,100 +248,46 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                     line: j
                 });
 
-                let ediItemName = rec.getSublistValue({
-                    sublistId: 'item',
-                    fieldId: 'custcol_boomi_edi_item_name',
-                    line: j
-                });
-
-                let itemTag = rec.getSublistValue({
-                    sublistId: 'item',
-                    fieldId: 'custcol_rsm_item_tag',
-                    line: j
-                });
-
-                    let firstPart1 = ediItemName.split(' ')[0];
-                    //let updatedName = firstPart + '-5P';
-                    
-
-                // if (itemTag && firstPart1 && soId == 69446843) {
-                //       let spkItem1 = 'SKP-' + firstPart1;
-                //       let itemIdIs = getItemIdByName(spkItem1);
-                //         log.debug('itemIdIs', itemIdIs);
-
-                //         if (itemIdIs) {
-                //             rec.selectLine({ sublistId: 'item', line: j });
-                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
-                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
-                //             rec.setCurrentSublistValue({
-                //                 sublistId: 'item',
-                //                 fieldId: 'rate',
-                //                 value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
-                //             });
-                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_er_mod_cplus_stain', value: 1 });
-
-                //             rec.commitLine({ sublistId: 'item' });
-
-                //             // log.debug('No 5P Case', {
-                //             //     line: j,
-                //             //     fallbackValue: firstPart
-                //             // });
-
-                //         }
-                //     }
-                // if (itemTag && firstPart1 && soId == 69446643) {
-                //       let spkItem1 = 'SBP-' + firstPart1;
-                //       let itemIdIs = getItemIdByName(spkItem1);
-                //         log.debug('itemIdIs', itemIdIs);
-
-                //         if (itemIdIs) {
-                //             rec.selectLine({ sublistId: 'item', line: j });
-                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemIdIs });
-                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
-                //             rec.setCurrentSublistValue({
-                //                 sublistId: 'item',
-                //                 fieldId: 'rate',
-                //                 value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
-                //             });
-                //             rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', value: 29 });
-
-                //             rec.commitLine({ sublistId: 'item' });
-
-                //             // log.debug('No 5P Case', {
-                //             //     line: j,
-                //             //     fallbackValue: firstPart
-                //             // });
-
-                //         }
-                //     }
+                let firstPart1 = ediItemName.split(' ')[0];
 
                 if (productServiceId == EDI_PRODUCT_SERVICE_ID && ediItemName) {
 
                     let firstPart = ediItemName.split(' ')[0];
                     let updatedName = firstPart + '-5P';
                     let spkItem = 'SKP-' + firstPart;
- 
+
                     if (is5P) {
 
                         const itemExists = getItemIdByName(updatedName);
 
                         if (itemExists) {
-                          
-                           rec.selectLine({
-                             sublistId: 'item',
-                             line: j
-                           });
+
+                            rec.selectLine({
+                                sublistId: 'item',
+                                line: j
+                            });
 
 
-                           rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemExists });
-                           rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
-                           rec.setCurrentSublistValue({
-                             sublistId: 'item',
-                             fieldId: 'rate',
-                             value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
-                           });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: itemExists });
+                            rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
+                            rec.setCurrentSublistValue({
+                                sublistId: 'item',
+                                fieldId: 'rate',
+                                value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
+                            });
 
-                          rec.commitLine({ sublistId: 'item' });
+                            try {
+                                if (itemTag === 'ELEGANT PLUS LINEN (M)') {
+                                    rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: OPTIONS_LINEN_COLOR });
+                                }
+                                if (itemTag === 'NEWPORT PLUS EVERGREEN (M)') {
+                                    rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: ORDER_EVERGREE_COLOR });
+                                }
+                            } catch (e) {
+                                log.debug('Ignored color set error (5P item)', e.message);
+                            }
+
+                            rec.commitLine({ sublistId: 'item' });
                         }
 
 
@@ -298,7 +296,7 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                             oldName: ediItemName,
                             newName: updatedName
                         });
-                    } 
+                    }
                     else {
 
                         let itemIdIs = getItemIdByName(firstPart);
@@ -314,6 +312,17 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                                 fieldId: 'rate',
                                 value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j })
                             });
+
+                            try {
+                                if (itemTag === 'ELEGANT PLUS LINEN (M)') {
+                                    rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: OPTIONS_LINEN_COLOR });
+                                }
+                                if (itemTag === 'NEWPORT PLUS EVERGREEN (M)') {
+                                    rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: ORDER_EVERGREE_COLOR });
+                                }
+                            } catch (e) {
+                                log.debug('Ignored color set error (fallback item)', e.message);
+                            }
 
                             rec.commitLine({ sublistId: 'item' });
 
@@ -333,10 +342,10 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
 
                 // var ediItemName = rec.getSublistValue({ sublistId: 'item', fieldId: 'custcol_boomi_edi_item_name', line: j });
                 // var transformedName = resultMap[ediItemName];
-                var transformedName = ediItemName == 'PAN 3400' ? 'L03-PLY4X8' : resultMap[ediItemName];
+                var transformedName = originalEdiItemName == 'PAN 3400' ? 'L03-PLY4X8' : resultMap[originalEdiItemName];
 
                 if (soId == '68910486') {
-                  log.audit('edit name', transformedName);
+                    log.audit('edit name', transformedName);
                 }
 
                 if (!transformedName) continue;
@@ -367,6 +376,18 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
                 rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'item', value: newItemId });
                 rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'price', value: -1 });
                 rec.setCurrentSublistValue({ sublistId: 'item', fieldId: 'rate', value: rec.getSublistValue({ sublistId: 'item', fieldId: 'rate', line: j }) });
+
+                try {
+                    if (itemTag === 'ELEGANT PLUS LINEN (M)') {
+                        rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: OPTIONS_LINEN_COLOR });
+                    }
+                    if (itemTag === 'NEWPORT PLUS EVERGREEN (M)') {
+                        rec.setCurrentSublistText({ sublistId: 'item', fieldId: 'custcol_yy_mod_cplus_color', text: ORDER_EVERGREE_COLOR });
+                    }
+                } catch (e) {
+                    log.error('Failed to set color after item change', e.message);
+                }
+
                 rec.commitLine({ sublistId: 'item' });
 
                 log.debug('Updated line', {
@@ -389,7 +410,10 @@ define(['N/search', 'N/record', 'N/log'], function (search, record, log) {
         try {
             var res = search.create({
                 type: search.Type.ITEM,
-                filters: [['itemid', 'is', name]],
+                filters: [
+                    ['itemid', 'is', name], 'AND',
+                    ['isinactive', 'is', 'F']
+                ],
                 columns: ['internalid']
             }).run().getRange({ start: 0, end: 1 });
 
